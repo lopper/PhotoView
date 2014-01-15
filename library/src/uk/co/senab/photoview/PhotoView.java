@@ -115,6 +115,9 @@ public class PhotoView extends ImageView implements IPhotoView {
         return mAttacher.getScale();
     }
 
+    public int getScrollEdge(){
+    	return mAttacher.getScrollEdge();
+    }
     @Override
     public ScaleType getScaleType() {
         return mAttacher.getScaleType();

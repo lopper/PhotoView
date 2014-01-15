@@ -187,6 +187,9 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         setZoomable(true);
     }
 
+    public int getScrollEdge(){
+    	return mScrollEdge;
+    }
     @Override
     public final boolean canZoom() {
         return mZoomEnabled;

@@ -180,6 +180,12 @@ public class PhotoView extends ImageView implements IPhotoView {
             mAttacher.update();
         }
     }
+    
+    public void updateAttacher(){
+        if (null != mAttacher) {
+            mAttacher.update();
+        }
+    }
 
     @Override
     public void setOnMatrixChangeListener(OnMatrixChangedListener listener) {

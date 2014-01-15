@@ -67,12 +67,16 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     public static final float DEFAULT_MID_SCALE = 1.75f;
     public static final float DEFAULT_MIN_SCALE = 1.0f;
 
+    public static final float DEFAULT_PAN_BUFFER_PERCENT = 1.0f/ 3.0f;
+    
+    
     private float mMinScale = DEFAULT_MIN_SCALE;
     private float mMidScale = DEFAULT_MID_SCALE;
     private float mMaxScale = DEFAULT_MAX_SCALE;
 
     private boolean mAllowParentInterceptOnEdge = true;
 
+    private RectF resetImageRect = null;
     private static void checkZoomLevels(float minZoom, float midZoom,
                                         float maxZoom) {
         if (minZoom >= midZoom) {
@@ -712,8 +716,11 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
             }
         }
     }
-
     private boolean checkMatrixBounds() {
+    	
+    	return checkMatrixBounds(false);
+    }
+    private boolean checkMatrixBounds(boolean isReset) {
         final ImageView imageView = getImageView();
         if (null == imageView) {
             return false;
@@ -723,12 +730,18 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         if (null == rect) {
             return false;
         }
+        
+
 
         final float height = rect.height(), width = rect.width();
         float deltaX = 0, deltaY = 0;
 
         final int viewHeight = getImageViewHeight(imageView);
-        if (height <= viewHeight) {
+        float heightPan =(viewHeight * DEFAULT_PAN_BUFFER_PERCENT);
+
+        
+        boolean isResetHeight = resetImageRect == null || resetImageRect.width() == width && resetImageRect.height() == height;
+        if (height <= viewHeight && isResetHeight) {
             switch (mScaleType) {
                 case FIT_START:
                     deltaY = -rect.top;
@@ -740,13 +753,14 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                     deltaY = (viewHeight - height) / 2 - rect.top;
                     break;
             }
-        } else if (rect.top > 0) {
-            deltaY = -rect.top;
-        } else if (rect.bottom < viewHeight) {
-            deltaY = viewHeight - rect.bottom;
+        } else if (rect.top > heightPan) {
+            deltaY = -(rect.top - heightPan);
+        } else if (rect.bottom < viewHeight - heightPan) {
+            deltaY = (viewHeight - heightPan) - rect.bottom;
         }
-
+       
         final int viewWidth = getImageViewWidth(imageView);
+
         if (width <= viewWidth) {
             switch (mScaleType) {
                 case FIT_START:
@@ -760,10 +774,10 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                     break;
             }
             mScrollEdge = EDGE_BOTH;
-        } else if (rect.left > 0) {
+        } else if (rect.left >= 0) {
             mScrollEdge = EDGE_LEFT;
             deltaX = -rect.left;
-        } else if (rect.right < viewWidth) {
+        } else if (rect.right <= viewWidth) {
             deltaX = viewWidth - rect.right;
             mScrollEdge = EDGE_RIGHT;
         } else {
@@ -814,7 +828,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     private void resetMatrix() {
         mSuppMatrix.reset();
         setImageViewMatrix(getDrawMatrix());
-        checkMatrixBounds();
+        checkMatrixBounds(true);
     }
 
     private void setImageViewMatrix(Matrix matrix) {
@@ -1050,8 +1064,10 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
             final int startY = Math.round(-rect.top);
             if (viewHeight < rect.height()) {
-                minY = 0;
-                maxY = Math.round(rect.height() - viewHeight);
+            	float heightPan =(viewHeight * DEFAULT_PAN_BUFFER_PERCENT);
+            	
+                minY = -1 * (int)heightPan;
+                maxY = Math.round(rect.height() - viewHeight + heightPan);
             } else {
                 minY = maxY = startY;
             }

@@ -739,7 +739,9 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         final int viewHeight = getImageViewHeight(imageView);
         float heightPan =(viewHeight * DEFAULT_PAN_BUFFER_PERCENT);
 
-        
+        if(isReset)
+        	resetImageRect = new RectF(rect);
+
         boolean isResetHeight = resetImageRect == null || resetImageRect.width() == width && resetImageRect.height() == height;
         if (height <= viewHeight && isResetHeight) {
             switch (mScaleType) {

@@ -16,6 +16,7 @@
 package uk.co.senab.photoview;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.graphics.Matrix.ScaleToFit;
 import android.graphics.RectF;
@@ -46,7 +47,6 @@ import static android.view.MotionEvent.ACTION_UP;
 
 public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         OnGestureListener,
-        android.view.GestureDetector.OnDoubleTapListener,
         ViewTreeObserver.OnGlobalLayoutListener {
 
     private static final String LOG_TAG = "PhotoViewAttacher";
@@ -151,12 +151,14 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     private FlingRunnable mCurrentFlingRunnable;
     private int mScrollEdge = EDGE_BOTH;
 
+    private boolean mRotationDetectionEnabled = false;
     private boolean mZoomEnabled;
     private ScaleType mScaleType = ScaleType.FIT_CENTER;
 
     public PhotoViewAttacher(ImageView imageView) {
         mImageView = new WeakReference<ImageView>(imageView);
 
+        imageView.setDrawingCacheEnabled(true);
         imageView.setOnTouchListener(this);
 
         ViewTreeObserver observer = imageView.getViewTreeObserver();
@@ -185,7 +187,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                     }
                 });
 
-        mGestureDetector.setOnDoubleTapListener(this);
+        mGestureDetector.setOnDoubleTapListener(new DefaultOnDoubleTapListener(this));
 
         // Finally, update the UI so that we're zoomable
         setZoomable(true);
@@ -194,6 +196,19 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     public int getScrollEdge(){
     	return mScrollEdge;
     }
+    /**
+     * Sets custom double tap listener, to intercept default given functions.
+     * To reset behavior to default, you can just pass in "null" or public field of PhotoViewAttacher.defaultOnDoubleTapListener
+     *
+     * @param newOnDoubleTapListener custom OnDoubleTapListener to be set on ImageView
+     */
+    public void setOnDoubleTapListener(GestureDetector.OnDoubleTapListener newOnDoubleTapListener) {
+        if (newOnDoubleTapListener != null)
+            this.mGestureDetector.setOnDoubleTapListener(newOnDoubleTapListener);
+        else
+            this.mGestureDetector.setOnDoubleTapListener(new DefaultOnDoubleTapListener(this));
+    }
+
     @Override
     public final boolean canZoom() {
         return mZoomEnabled;
@@ -336,32 +351,6 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         return mScaleType;
     }
 
-    @Override
-    public final boolean onDoubleTap(MotionEvent ev) {
-        try {
-            float scale = getScale();
-            float x = ev.getX();
-            float y = ev.getY();
-
-            if (scale < mMidScale) {
-                setScale(mMidScale, x, y, true);
-            } else if (scale >= mMidScale && scale < mMaxScale) {
-                setScale(mMaxScale, x, y, true);
-            } else {
-                setScale(mMinScale, x, y, true);
-            }
-        } catch (ArrayIndexOutOfBoundsException e) {
-            // Can sometimes happen when getX() and getY() is called
-        }
-
-        return true;
-    }
-
-    @Override
-    public final boolean onDoubleTapEvent(MotionEvent e) {
-        // Wait for the confirmed onDoubleTap() instead
-        return false;
-    }
 
     @Override
     public final void onDrag(float dx, float dy) {
@@ -457,36 +446,6 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
             mSuppMatrix.postScale(scaleFactor, scaleFactor, focusX, focusY);
             checkAndDisplayMatrix();
         }
-    }
-
-    @Override
-    public final boolean onSingleTapConfirmed(MotionEvent e) {
-        ImageView imageView = getImageView();
-
-        if (null != mPhotoTapListener) {
-            final RectF displayRect = getDisplayRect();
-
-            if (null != displayRect) {
-                final float x = e.getX(), y = e.getY();
-
-                // Check to see if the user tapped on the photo
-                if (displayRect.contains(x, y)) {
-
-                    float xResult = (x - displayRect.left)
-                            / displayRect.width();
-                    float yResult = (y - displayRect.top)
-                            / displayRect.height();
-
-                    mPhotoTapListener.onPhotoTap(imageView, xResult, yResult);
-                    return true;
-                }
-            }
-        }
-        if (null != mViewTapListener) {
-            mViewTapListener.onViewTap(imageView, e.getX(), e.getY());
-        }
-
-        return false;
     }
 
     @Override
@@ -600,8 +559,18 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     }
 
     @Override
+    public final OnPhotoTapListener getOnPhotoTapListener() {
+        return mPhotoTapListener;
+    }
+
+    @Override
     public final void setOnViewTapListener(OnViewTapListener listener) {
         mViewTapListener = listener;
+    }
+
+    @Override
+    public final OnViewTapListener getOnViewTapListener() {
+        return mViewTapListener;
     }
 
     @Override
@@ -814,6 +783,11 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
             }
         }
         return null;
+    }
+
+    public Bitmap getVisibleRectangleBitmap() {
+        ImageView imageView = getImageView();
+        return imageView == null ? null : imageView.getDrawingCache();
     }
 
     /**

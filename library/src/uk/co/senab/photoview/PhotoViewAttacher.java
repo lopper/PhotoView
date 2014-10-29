@@ -376,7 +376,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
          * on, and the direction of the scroll (i.e. if we're pulling against
          * the edge, aka 'overscrolling', let the parent take over).
          */
-        if (mAllowParentInterceptOnEdge) {
+        if (mAllowParentInterceptOnEdge && !mScaleDragDetector.isScaling()) {
             if (mScrollEdge == EDGE_BOTH
                     || (mScrollEdge == EDGE_LEFT && dx >= 1f)
                     || (mScrollEdge == EDGE_RIGHT && dx <= -1f)) {
